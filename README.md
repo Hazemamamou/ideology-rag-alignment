@@ -462,9 +462,10 @@ Apache License 2.0
 
 If you use this repository in your work, please cite:
 
+```bibtex
 @inproceedings{Amamou2026IdeologicalAlignment,
   title={Investigating LLMs' Alignment with Ideological Discourses in Retrieval-Augmented Generation},
   author={Amamou, Hazem and Salari, Elmira and Chen, Ru Bing and Delfino, Maria Claudia Nunes and Yamada, Rogerio and Berber-Sardinha, Tony and Kshirsagar, Shruti and Gagnon, Samuel and Davoust, Alan and Avila, Anderson R.},
   booktitle={Conference on Computational Natural Language Learning (CoNLL 2026)},
   year={2026}
-}
+} ```
