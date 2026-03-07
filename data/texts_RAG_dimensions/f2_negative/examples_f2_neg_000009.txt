@@ -1,0 +1,22 @@
+file = t000417
+date = 2020-10-22
+user = BIDEN
+conversation = Presidential_Debate_at_Belmont_University_in_Nashville,_Tennessee
+URL = Presidential_Debate_at_Belmont_University_in_Nashville,_Tennessee
+
+word count = 107
+words loading = 1
+factor score = -3
+
+My response is people deserve to have affordable health care — period. 
+Period, period, period. And the Bidencare proposal will, in fact, provide for 
+that affordable health care, lower **premiums** . What we ' re going to do is 
+going to cost some money; it ' s going to cost over $750 billion over 10 years 
+to do it. And they ' re going to have lower **premiums** , you can buy into the 
+better plans, the cheaper plans, lower your **premiums** , deal with unexpected 
+billing, and have your drug prices drop significantly. He keeps talking about 
+it. He hasn ' t done a thing for anybody on health care, not a thing. 
+
+Lemmas in this text that loaded on the factor:
+
+premium 

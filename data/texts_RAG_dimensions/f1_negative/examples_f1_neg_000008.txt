@@ -1,0 +1,21 @@
+file = t001171
+date = 2012-10-11
+user = BIDEN
+conversation = October_11,_2012_Debate_Transcript
+URL = REP._PAUL_D._RYAN,_R-WIS.,_VICE_PRESIDENTIAL_CANDIDATE,AND_VICE_PRESIDENT_JOSEPH_R._BIDEN_JR._PARTICIPATE_IN_ACANDIDATES_DEBATE,_DANVILLE,_KENTUCKY
+
+word count = 91
+words loading = 1
+factor score = -3
+
+It ' s incredible. Look, imagine had we let the Republican Congress work out 
+the **sanctions** . You think there ' s any possibility the entire world would 
+have joined us, Russia and China, all of our allies? These are the most 
+crippling **sanctions** in the history of **sanctions** , period. Period. When 
+Governor Romney ' s asked about it, he said, " We gotta keep these 
+**sanctions** . " When he said, " Well, you ' re talking about doing more, " 
+what are you — you ' re going to go to war? Is that what you want to do? 
+
+Lemmas in this text that loaded on the factor:
+
+sanction 
