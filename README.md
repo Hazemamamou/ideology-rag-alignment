@@ -636,5 +636,9 @@ If you use this repository in your work, please cite:
   author={Amamou, Hazem and Salari, Elmira and Chen, Ru Bing and Delfino, Maria Claudia Nunes and Yamada, Rogerio and Berber-Sardinha, Tony and Kshirsagar, Shruti and Gagnon, Samuel and Davoust, Alan and Avila, Anderson R.},
   booktitle={Conference on Computational Natural Language Learning (CoNLL 2026)},
   year={2026}
+<<<<<<< HEAD
 }
 ```
+=======
+} ```
+>>>>>>> 6a62db5359d34b1e5f36420c0a42dab6551ab55d
