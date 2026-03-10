@@ -1,4 +1,3 @@
-import os
 import re
 import argparse
 from pathlib import Path
@@ -54,13 +53,20 @@ RAG_TEMPLATE_MAP = {
     "prior_extensive_external": "prior_extensive_external",
 }
 
+GRAPHRAG_TEMPLATE_MAP = {
+    "default_graphrag_template": "GraphRAG",
+    "political_discourse_analysis_template": "GraphRAG+",
+}
+
 SUPPORTED_RAG_MODES = ["standard", "opposed", "both"]
+SUPPORTED_GRAPHRAG_SOURCES = ["standard", "opposed"]
 
 
 def parse_list_argument(value: str, allowed_values: List[str], arg_name: str) -> List[str]:
     value = value.strip()
     if value.lower() == "all":
         return allowed_values
+
     items = [item.strip() for item in value.split(",") if item.strip()]
     invalid = [item for item in items if item not in allowed_values]
     if invalid:
@@ -118,11 +124,13 @@ def build_rag_results_path(results_root: str, model: str, mode: str, template: s
     return Path(results_root) / f"output_rag_{mode}_{model}_{template}" / f"results_{dim_slug}.csv"
 
 
+def build_graphrag_results_path(results_root: str, source: str, model: str, template: str, dimension: str) -> Path:
+    dim_slug = DIMENSION_MAP[dimension]
+    return Path(results_root) / f"output_graphrag_{source}_{model}_{template}" / f"results_{dim_slug}.csv"
+
+
 def get_embedder(embedding_model: str) -> OpenAIEmbeddings:
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        raise ValueError("OPENAI_API_KEY not found in environment variables.")
-    return OpenAIEmbeddings(model=embedding_model, api_key=api_key)
+    return OpenAIEmbeddings(model=embedding_model)
 
 
 @retry(wait=wait_random_exponential(min=1, max=20), stop=stop_after_attempt(3))
@@ -302,6 +310,50 @@ def evaluate_rag(
     return summary, detailed
 
 
+def evaluate_graphrag(
+    questions_df: pd.DataFrame,
+    results_root: str,
+    models: List[str],
+    sources: List[str],
+    templates: List[str],
+    dimensions: List[str],
+    embedder: OpenAIEmbeddings,
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    all_summary = []
+    all_detailed = []
+
+    for model in models:
+        for source in sources:
+            for template in templates:
+                template_tag = GRAPHRAG_TEMPLATE_MAP.get(template, template)
+                for dimension in dimensions:
+                    results_path = build_graphrag_results_path(
+                        results_root=results_root,
+                        source=source,
+                        model=model,
+                        template=template,
+                        dimension=dimension,
+                    )
+                    summary_df, detailed_df = evaluate_results_file(
+                        questions_df=questions_df,
+                        results_path=results_path,
+                        model=model,
+                        system_type="GraphRAG",
+                        knowledge_template=template_tag,
+                        dimension_type=source,
+                        dimension=dimension,
+                        embedder=embedder,
+                    )
+                    if not summary_df.empty:
+                        all_summary.append(summary_df)
+                    if not detailed_df.empty:
+                        all_detailed.append(detailed_df)
+
+    summary = pd.concat(all_summary, ignore_index=True) if all_summary else pd.DataFrame()
+    detailed = pd.concat(all_detailed, ignore_index=True) if all_detailed else pd.DataFrame()
+    return summary, detailed
+
+
 def normalize_model_name(model: str) -> str:
     model_map = {
         "gpt-4o-mini": "GPT-4omini",
@@ -325,6 +377,13 @@ def normalize_config_label(system_type: str, knowledge_template: str) -> str:
             "only_external_knowledge": "RAG",
             "prior_external": "RAG+",
             "prior_extensive_external": "RAG++",
+        }
+        return mapping.get(knowledge_template, knowledge_template)
+
+    if system_type == "GraphRAG":
+        mapping = {
+            "GraphRAG": "GraphRAG",
+            "GraphRAG+": "GraphRAG+",
         }
         return mapping.get(knowledge_template, knowledge_template)
 
@@ -370,7 +429,15 @@ def build_dimension_pivot_table(summary_df: pd.DataFrame) -> pd.DataFrame:
     for col in existing_dim_cols:
         pivot_df[col] = pivot_df[col].round(2)
 
-    config_order = {"LLM": 0, "LLM+": 1, "RAG": 2, "RAG+": 3, "RAG++": 4}
+    config_order = {
+        "LLM": 0,
+        "LLM+": 1,
+        "RAG": 2,
+        "RAG+": 3,
+        "RAG++": 4,
+        "GraphRAG": 5,
+        "GraphRAG+": 6,
+    }
     model_order = {"GPT-4omini": 0, "GPT-3.5": 1, "Gemini": 2, "Claude": 3}
 
     pivot_df["_model_order"] = pivot_df["Model"].map(model_order).fillna(999)
@@ -421,11 +488,13 @@ def main():
     )
     parser.add_argument("--questions_file", type=str, default="data/Questions.csv")
     parser.add_argument("--results_root", type=str, default="results")
-    parser.add_argument("--system", type=str, default="all", help="norag, rag, or all")
+    parser.add_argument("--system", type=str, default="all", help="norag, rag, graphrag, or all")
     parser.add_argument("--model", type=str, default="all", help="Model name(s), comma-separated, or all")
     parser.add_argument("--norag_template", type=str, default="all", help="NoRAG template(s), comma-separated, or all")
     parser.add_argument("--rag_template", type=str, default="all", help="RAG template(s), comma-separated, or all")
+    parser.add_argument("--graphrag_template", type=str, default="all", help="GraphRAG template(s), comma-separated, or all")
     parser.add_argument("--mode", type=str, default="all", help="RAG mode(s): standard, opposed, both, or all")
+    parser.add_argument("--graphrag_source", type=str, default="all", help="GraphRAG source(s): standard, opposed, or all")
     parser.add_argument("--dimension", type=str, default="all", help="Dimension(s), comma-separated, or all")
     parser.add_argument("--embedding_model", type=str, default="text-embedding-3-small")
     parser.add_argument("--out_dir", type=str, default="results_eval/embed")
@@ -438,19 +507,22 @@ def main():
     model_candidates = sorted(["gpt-4o-mini", "gpt-3.5-turbo", "google", "anthropic"])
     norag_template_candidates = sorted(list(NORAG_TEMPLATE_MAP.keys()))
     rag_template_candidates = sorted(list(RAG_TEMPLATE_MAP.keys()))
+    graphrag_template_candidates = sorted(list(GRAPHRAG_TEMPLATE_MAP.keys()))
 
     selected_models = parse_list_argument(args.model, model_candidates, "model")
     selected_dimensions = parse_list_argument(args.dimension, SUPPORTED_DIMENSIONS, "dimension")
     selected_modes = parse_list_argument(args.mode, SUPPORTED_RAG_MODES, "mode")
     selected_norag_templates = parse_list_argument(args.norag_template, norag_template_candidates, "norag_template")
     selected_rag_templates = parse_list_argument(args.rag_template, rag_template_candidates, "rag_template")
+    selected_graphrag_templates = parse_list_argument(args.graphrag_template, graphrag_template_candidates, "graphrag_template")
+    selected_graphrag_sources = parse_list_argument(args.graphrag_source, SUPPORTED_GRAPHRAG_SOURCES, "graphrag_source")
 
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     system = args.system.lower().strip()
-    if system not in {"norag", "rag", "all"}:
-        raise ValueError("system must be one of: norag, rag, all")
+    if system not in {"norag", "rag", "graphrag", "all"}:
+        raise ValueError("system must be one of: norag, rag, graphrag, all")
 
     final_summary_parts = []
     final_detailed_parts = []
@@ -485,6 +557,22 @@ def main():
             final_summary_parts.append(rag_summary)
         if not rag_detailed.empty:
             final_detailed_parts.append(rag_detailed)
+
+    if system in {"graphrag", "all"}:
+        print("[INFO] Evaluating GraphRAG outputs with embeddings...")
+        graphrag_summary, graphrag_detailed = evaluate_graphrag(
+            questions_df=questions_df,
+            results_root=args.results_root,
+            models=selected_models,
+            sources=selected_graphrag_sources,
+            templates=selected_graphrag_templates,
+            dimensions=selected_dimensions,
+            embedder=embedder,
+        )
+        if not graphrag_summary.empty:
+            final_summary_parts.append(graphrag_summary)
+        if not graphrag_detailed.empty:
+            final_detailed_parts.append(graphrag_detailed)
 
     final_summary = pd.concat(final_summary_parts, ignore_index=True) if final_summary_parts else pd.DataFrame()
     final_detailed = pd.concat(final_detailed_parts, ignore_index=True) if final_detailed_parts else pd.DataFrame()
